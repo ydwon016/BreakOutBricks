@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Breakout 게임 (터치 + 키보드 조작)</title>
+  <title>Breakout 게임 (터치 + 키보드 조작) with 레벨 시스템</title>
   <style>
     body { margin: 0; background: #000; overflow: hidden; touch-action: none; }
     canvas { display: block; margin: 0 auto; background: #111; }
@@ -39,34 +39,90 @@ window.onload = function() {
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
 
+  // 패들
   let paddleHeight = 10;
   let paddleWidth = 75;
   let paddleX = (canvas.width - paddleWidth) / 2;
   let rightPressed = false;
   let leftPressed = false;
 
+  // 공 초기 위치
   let ballRadius = 8;
   let x = canvas.width / 2;
   let y = canvas.height - 30;
-  let dx = 2;
-  let dy = -2;
 
-  let brickRowCount = 5;
-  let brickColumnCount = 7;
+  // 점수, 목숨
+  let score = 0;
+  let lives = 3;
+
+  // 레벨 시스템 변수
+  let currentLevel = 1;
+  const levels = [
+    { rows: 3, cols: 5, ballSpeed: 2, bgColor: '#111' },
+    { rows: 5, cols: 7, ballSpeed: 3, bgColor: '#222' },
+    { rows: 7, cols: 9, ballSpeed: 4, bgColor: '#333' }
+  ];
+  let brickRowCount, brickColumnCount;
+  let dx, dy;
+  let bricks = [];
+
+  // 브릭 크기 및 간격
   let brickWidth = 60;
   let brickHeight = 20;
   let brickPadding = 10;
   let brickOffsetTop = 30;
   let brickOffsetLeft = 15;
 
-  let score = 0;
-  let lives = 3;
+  // 브릭 초기화
+  function initBricks() {
+    bricks = [];
+    for (let c = 0; c < brickColumnCount; c++) {
+      bricks[c] = [];
+      for (let r = 0; r < brickRowCount; r++) {
+        bricks[c][r] = { x: 0, y: 0, status: 1 };
+      }
+    }
+  }
 
-  let bricks = [];
-  for(let c = 0; c < brickColumnCount; c++) {
-    bricks[c] = [];
-    for(let r = 0; r < brickRowCount; r++) {
-      bricks[c][r] = { x: 0, y: 0, status: 1 };
+  // 레벨 초기화
+  function initLevel(level) {
+    const cfg = levels[level - 1] || levels[levels.length - 1];
+    brickRowCount = cfg.rows;
+    brickColumnCount = cfg.cols;
+    dx = cfg.ballSpeed;
+    dy = -cfg.ballSpeed;
+    document.body.style.background = cfg.bgColor;
+    initBricks();
+    score = 0;
+  }
+
+  // 다음 레벨 이동
+  function nextLevel() {
+    currentLevel++;
+    if (currentLevel > levels.length) {
+      alert('모든 스테이지 클리어! 축하합니다!');
+      document.location.reload();
+    } else {
+      initLevel(currentLevel);
+    }
+  }
+
+  // 충돌 검사
+  function collisionDetection() {
+    for (let c = 0; c < brickColumnCount; c++) {
+      for (let r = 0; r < brickRowCount; r++) {
+        let b = bricks[c][r];
+        if (b.status === 1 &&
+            x > b.x && x < b.x + brickWidth &&
+            y > b.y && y < b.y + brickHeight) {
+          dy = -dy;
+          b.status = 0;
+          score++;
+          if (score === brickRowCount * brickColumnCount) {
+            nextLevel();
+          }
+        }
+      }
     }
   }
 
@@ -87,11 +143,11 @@ window.onload = function() {
   }
 
   function drawBricks() {
-    for(let c = 0; c < brickColumnCount; c++) {
-      for(let r = 0; r < brickRowCount; r++) {
-        if(bricks[c][r].status == 1) {
-          let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
-          let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+    for (let c = 0; c < brickColumnCount; c++) {
+      for (let r = 0; r < brickRowCount; r++) {
+        if (bricks[c][r].status === 1) {
+          let brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+          let brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
           bricks[c][r].x = brickX;
           bricks[c][r].y = brickY;
           ctx.beginPath();
@@ -116,25 +172,6 @@ window.onload = function() {
     ctx.fillText("목숨: " + lives, canvas.width - 80, 20);
   }
 
-  function collisionDetection() {
-    for(let c = 0; c < brickColumnCount; c++) {
-      for(let r = 0; r < brickRowCount; r++) {
-        let b = bricks[c][r];
-        if(b.status == 1) {
-          if(x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
-            dy = -dy;
-            b.status = 0;
-            score++;
-            if(score == brickRowCount * brickColumnCount) {
-              alert("축하합니다! 모든 벽돌을 깼습니다!");
-              document.location.reload();
-            }
-          }
-        }
-      }
-    }
-  }
-
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBricks();
@@ -144,30 +181,30 @@ window.onload = function() {
     drawLives();
     collisionDetection();
 
-    if(rightPressed) paddleX += 5;
-    else if(leftPressed) paddleX -= 5;
+    if (rightPressed) paddleX += 5;
+    if (leftPressed) paddleX -= 5;
 
-    if(paddleX < 0) paddleX = 0;
-    if(paddleX + paddleWidth > canvas.width) paddleX = canvas.width - paddleWidth;
+    if (paddleX < 0) paddleX = 0;
+    if (paddleX + paddleWidth > canvas.width) paddleX = canvas.width - paddleWidth;
 
-    if(x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+    if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
       dx = -dx;
     }
-    if(y + dy < ballRadius) {
+    if (y + dy < ballRadius) {
       dy = -dy;
-    } else if(y + dy > canvas.height - ballRadius - 10) {
-      if(x > paddleX && x < paddleX + paddleWidth) {
+    } else if (y + dy > canvas.height - ballRadius - 10) {
+      if (x > paddleX && x < paddleX + paddleWidth) {
         dy = -dy;
       } else {
         lives--;
-        if(!lives) {
+        if (!lives) {
           alert("게임 오버!");
           document.location.reload();
         } else {
           x = canvas.width / 2;
           y = canvas.height - 30;
-          dx = 2;
-          dy = -2;
+          dx = levels[currentLevel - 1].ballSpeed;
+          dy = -levels[currentLevel - 1].ballSpeed;
           paddleX = (canvas.width - paddleWidth) / 2;
         }
       }
@@ -175,29 +212,30 @@ window.onload = function() {
 
     x += dx;
     y += dy;
-
     requestAnimationFrame(draw);
   }
 
+  // 터치 컨트롤
   document.getElementById("touch-area").addEventListener("touchmove", function(e) {
     const touchX = e.touches[0].clientX;
     const rect = canvas.getBoundingClientRect();
-    const canvasX = touchX - rect.left;
-    paddleX = canvasX - paddleWidth / 2;
+    paddleX = touchX - rect.left - paddleWidth / 2;
     if (paddleX < 0) paddleX = 0;
     if (paddleX + paddleWidth > canvas.width) paddleX = canvas.width - paddleWidth;
   });
 
+  // 키보드 컨트롤
   document.addEventListener("keydown", function(e) {
-    if(e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
-    else if(e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
+    if (e.key === "ArrowRight") rightPressed = true;
+    if (e.key === "ArrowLeft") leftPressed = true;
   });
-
   document.addEventListener("keyup", function(e) {
-    if(e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
-    else if(e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
+    if (e.key === "ArrowRight") rightPressed = false;
+    if (e.key === "ArrowLeft") leftPressed = false;
   });
 
+  // 게임 시작
+  initLevel(currentLevel);
   draw();
 };
 </script>
