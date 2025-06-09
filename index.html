@@ -11,6 +11,7 @@
       margin: 20px auto;
       background: #111;
       border: 4px solid #00ffcc;
+      touch-action: none;
     }
     #touch-area {
       position: fixed;
@@ -20,6 +21,7 @@
       background: rgba(255,255,255,0.05);
       z-index: 2;
       border-top: 2px dashed #00ffcc;
+      touch-action: none;
     }
     #touch-hint, #keyboard-hint {
       position: fixed;
@@ -103,7 +105,9 @@ window.onload = function() {
     dy = -cfg.speed;
     document.body.style.background = cfg.bg;
     initBricks();
+    // 점수 및 목숨 초기화
     score = 0;
+    lives = 3;
     // 공 초기 위치
     x = startX;
     y = startY;
@@ -229,13 +233,21 @@ window.onload = function() {
   }
 
   // 이벤트 리스너 설정
+  function handleTouch(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    paddleX = touchX - paddleWidth / 2;
+    if (paddleX < 0) paddleX = 0;
+    if (paddleX + paddleWidth > canvas.width) paddleX = canvas.width - paddleWidth;
+  }
   if (isMobile) {
-    document.getElementById('touch-area').addEventListener('touchmove', e => {
-      const touchX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
-      paddleX = touchX - paddleWidth / 2;
-      if (paddleX < 0) paddleX = 0;
-      if (paddleX + paddleWidth > canvas.width) paddleX = canvas.width - paddleWidth;
-    });
+    const touchArea = document.getElementById('touch-area');
+    touchArea.addEventListener('touchstart', handleTouch, { passive: false });
+    touchArea.addEventListener('touchmove', handleTouch, { passive: false });
+    // 캔버스 터치도 지원
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
+    canvas.addEventListener('touchmove', handleTouch, { passive: false });
   } else {
     document.addEventListener('keydown', e => {
       if (e.key === 'ArrowRight') rightPressed = true;
